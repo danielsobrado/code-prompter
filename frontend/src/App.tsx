@@ -9,7 +9,9 @@ import ActionButtons from './components/ActionButtons'
 
 function App() {
   const [taskType, setTaskType] = useState('Feature')
+  const [taskTypeChecked, setTaskTypeChecked] = useState(true)
   const [customInstructions, setCustomInstructions] = useState('Default')
+  const [customInstructionsChecked, setCustomInstructionsChecked] = useState(true)
   const [rawPrompt, setRawPrompt] = useState('')
   const [finalPrompt] = useState('')
 
@@ -18,10 +20,20 @@ function App() {
       <Header />
       <div className="grid grid-cols-2 gap-4 mt-4">
         <div className="col-span-1">
-          <TaskTypeSelector value={taskType} onChange={setTaskType} />
+          <TaskTypeSelector 
+            value={taskType} 
+            onChange={setTaskType}
+            checked={taskTypeChecked}
+            onCheckedChange={setTaskTypeChecked}
+          />
         </div>
         <div className="col-span-1">
-          <CustomInstructionsSelector value={customInstructions} onChange={setCustomInstructions} />
+          <CustomInstructionsSelector 
+            value={customInstructions} 
+            onChange={setCustomInstructions}
+            checked={customInstructionsChecked}
+            onCheckedChange={setCustomInstructionsChecked}
+          />
         </div>
       </div>
       <CodeContext />
