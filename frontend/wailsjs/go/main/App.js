@@ -6,10 +6,6 @@ export function HandleFileDrop(arg1) {
   return window['go']['main']['App']['HandleFileDrop'](arg1);
 }
 
-export function OnFileDrop(arg1) {
-  return window['go']['main']['App']['OnFileDrop'](arg1);
-}
-
 export function ProcessFolder(arg1, arg2) {
   return window['go']['main']['App']['ProcessFolder'](arg1, arg2);
 }
