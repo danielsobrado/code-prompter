@@ -8,3 +8,4 @@ node_modules
 /frontend/package.json.md5
 /frontend/package-lock.json
 /build/bin
+.history

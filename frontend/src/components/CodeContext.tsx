@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { SelectFile, SelectDirectory, ProcessFolder, ReadFileContent } from '../../wailsjs/go/main/App';
-import { Folder, File, ChevronRight, ChevronDown, X, Plus, Trash } from "lucide-react";
 import { EventsOn, EventsOff } from '../../wailsjs/runtime/runtime';
+import { FileTreeComponent } from './FileTreeComponent';
+import { FileOperations } from './FileOperations';
+import { DragAndDropHandler } from './DragAndDropHandler';
 
 interface FileItem {
   path: string;
@@ -21,7 +21,6 @@ interface CodeContextProps {
 
 export default function CodeContext({ onSelectedFilesChange }: CodeContextProps) {
   const [files, setFiles] = useState<FileItem[]>([]);
-  const [isDragging, setIsDragging] = useState(false);
 
   useEffect(() => {
     const handleFilesDropped = async (droppedFiles: string[]) => {
@@ -36,7 +35,6 @@ export default function CodeContext({ onSelectedFilesChange }: CodeContextProps)
     };
 
     EventsOn("files-dropped", handleFilesDropped);
-
     return () => {
       EventsOff("files-dropped");
     };
@@ -49,6 +47,50 @@ export default function CodeContext({ onSelectedFilesChange }: CodeContextProps)
       .join('\n\n');
     onSelectedFilesChange(selectedContent);
   }, [files, onSelectedFilesChange]);
+
+  const addFileToStructure = (filePath: string, content: string) => {
+    setFiles(prevFiles => {
+      const newFiles = [...prevFiles];
+      const parts = filePath.split('/');
+      let currentLevel = newFiles;
+
+      for (let i = 0; i < parts.length; i++) {
+        const part = parts[i];
+        const isLast = i === parts.length - 1;
+        let existingItem = currentLevel.find(item => item.path.endsWith(part));
+
+        if (existingItem && existingItem.isDirectory && !isLast) {
+          currentLevel = existingItem.children!;
+        } else if (isLast) {
+          if (!existingItem) {
+            existingItem = { 
+              path: filePath, 
+              isDirectory: false, 
+              content: content,
+              isSelected: false
+            };
+            currentLevel.push(existingItem);
+          } else {
+            existingItem.content = content;
+          }
+        } else {
+          if (!existingItem) {
+            existingItem = { 
+              path: parts.slice(0, i + 1).join('/'),
+              isDirectory: true,
+              children: [],
+              isOpen: true,
+              isSelected: false
+            };
+            currentLevel.push(existingItem);
+          }
+          currentLevel = existingItem.children!;
+        }
+      }
+
+      return newFiles;
+    });
+  };
 
   const handleAddFile = async () => {
     try {
@@ -79,51 +121,6 @@ export default function CodeContext({ onSelectedFilesChange }: CodeContextProps)
     } catch (error) {
       console.error("Error processing folder:", error);
     }
-  };
-
-  const addFileToStructure = (filePath: string, content: string) => {
-    setFiles(prevFiles => {
-      const newFiles = [...prevFiles];
-      const parts = filePath.split('/');
-      let currentLevel = newFiles;
-
-      for (let i = 0; i < parts.length; i++) {
-        const part = parts[i];
-        const isLast = i === parts.length - 1;
-        let existingItem = currentLevel.find(item => item.path.endsWith(part));
-
-        if (existingItem && existingItem.isDirectory && !isLast) {
-          currentLevel = existingItem.children!;
-        } else if (isLast) {
-          if (!existingItem) {
-            existingItem = { 
-              path: filePath, 
-              isDirectory: false, 
-              content: content,
-              isSelected: false
-            };
-            currentLevel.push(existingItem);
-          } else {
-            // Update existing file
-            existingItem.content = content;
-          }
-        } else {
-          if (!existingItem) {
-            existingItem = { 
-              path: parts.slice(0, i + 1).join('/'),
-              isDirectory: true,
-              children: [],
-              isOpen: true,
-              isSelected: false
-            };
-            currentLevel.push(existingItem);
-          }
-          currentLevel = existingItem.children!;
-        }
-      }
-
-      return newFiles;
-    });
   };
 
   const toggleFolder = (path: string) => {
@@ -184,60 +181,11 @@ export default function CodeContext({ onSelectedFilesChange }: CodeContextProps)
     });
   };
 
-  const renderFileTree = (items: FileItem[], level = 0) => {
-    return items.map((item) => (
-      <div key={item.path} style={{ marginLeft: `${level * 20}px` }}>
-        <div className="flex items-center">
-          <Checkbox
-            checked={item.isSelected}
-            onCheckedChange={() => toggleSelect(item.path)}
-          />
-          {item.isDirectory ? (
-            <Button variant="ghost" size="sm" onClick={() => toggleFolder(item.path)}>
-              {item.isOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-            </Button>
-          ) : (
-            <File className="mr-2" size={16} />
-          )}
-          <span>{item.path.split('/').pop()}</span>
-          <Button variant="ghost" size="sm" onClick={() => removeFile(item.path)}>
-            <X size={16} />
-          </Button>
-        </div>
-        {item.isDirectory && item.isOpen && item.children && renderFileTree(item.children, level + 1)}
-      </div>
-    ));
+  const clearAll = () => {
+    setFiles([]);
   };
 
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setIsDragging(false);
-  };
-
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setIsDragging(false);
-    
-    const items = e.dataTransfer.items;
-    if (items) {
-      for (let i = 0; i < items.length; i++) {
-        const item = items[i];
-        if (item.kind === 'file') {
-          const entry = item.webkitGetAsEntry();
-          if (entry) {
-            traverseFileSystemEntry(entry);
-          }
-        }
-      }
-    }
-  };
-
-  const traverseFileSystemEntry = (entry: any) => {
+  const handleFileDrop = (entry: any) => {
     if (entry.isFile) {
       entry.file((file: File) => {
         const reader = new FileReader();
@@ -251,44 +199,36 @@ export default function CodeContext({ onSelectedFilesChange }: CodeContextProps)
       const dirReader = entry.createReader();
       dirReader.readEntries((entries: any[]) => {
         for (let i = 0; i < entries.length; i++) {
-          traverseFileSystemEntry(entries[i]);
+          handleFileDrop(entries[i]);
         }
       });
     }
   };
 
-  const clearAll = () => {
-    setFiles([]);
-  };
-
   return (
     <div className="mt-4">
       <Card>
-        <CardContent 
-          className={`h-60 overflow-y-auto p-4 ${isDragging ? 'bg-blue-100' : ''}`}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-        >
-          {renderFileTree(files)}
-          {files.length === 0 && (
-            <p className="text-gray-500 text-center mt-4">
-              Drag and drop files or folders here, or use the buttons below to add them.
-            </p>
-          )}
-        </CardContent>
+        <DragAndDropHandler onFileDrop={handleFileDrop}>
+          <CardContent className="h-60 overflow-y-auto p-4">
+            <FileTreeComponent
+              files={files}
+              onToggleFolder={toggleFolder}
+              onToggleSelect={toggleSelect}
+              onRemoveFile={removeFile}
+            />
+            {files.length === 0 && (
+              <p className="text-gray-500 text-center mt-4">
+                Drag and drop files or folders here, or use the buttons below to add them.
+              </p>
+            )}
+          </CardContent>
+        </DragAndDropHandler>
       </Card>
-      <div className="mt-2 space-x-2">
-        <Button variant="outline" onClick={handleAddFile}>
-          <Plus size={16} className="mr-2" /> Add File
-        </Button>
-        <Button variant="outline" onClick={handleAddFolder}>
-          <Folder size={16} className="mr-2" /> Add Folder
-        </Button>
-        <Button variant="outline" onClick={clearAll}>
-          <Trash size={16} className="mr-2" /> Clear All
-        </Button>
-      </div>
+      <FileOperations
+        onAddFile={handleAddFile}
+        onAddFolder={handleAddFolder}
+        onClearAll={clearAll}
+      />
     </div>
   );
 }
