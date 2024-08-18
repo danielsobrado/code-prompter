@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Header from './components/Header';
 import TaskTypeSelector from './components/TaskTypeSelector';
 import CustomInstructionsSelector from './components/CustomInstructionsSelector';
@@ -22,7 +22,7 @@ function App() {
     setIsSettingsOpen(true);
   };
 
-  const generatePrompt = () => {
+  const generatePrompt = useCallback(() => {
     let prompt = '';
     
     if (taskTypeChecked) {
@@ -37,7 +37,11 @@ function App() {
     prompt += `Selected Files:\n${selectedFilesContent}\n\n`;
     
     setFinalPrompt(prompt);
-  };
+  }, [taskType, taskTypeChecked, customInstructions, customInstructionsChecked, rawPrompt, selectedFilesContent]);
+
+  useEffect(() => {
+    generatePrompt();
+  }, [generatePrompt]);
 
   const handleEdit = () => {
     // Implement edit functionality
@@ -50,10 +54,14 @@ function App() {
       .catch(err => console.error('Failed to copy prompt: ', err));
   };
 
+  const handleSelectedFilesChange = useCallback((content: string) => {
+    setSelectedFilesContent(content);
+  }, []);
+
   return (
-    <div className="container mx-auto p-4">
+    <div className="container mx-auto p-4 space-y-4">
       <Header onSettingsClick={handleSettingsClick} />
-      <div className="grid grid-cols-2 gap-4 mt-4">
+      <div className="grid grid-cols-2 gap-4">
         <div className="col-span-1">
           <TaskTypeSelector 
             value={taskType} 
@@ -71,7 +79,7 @@ function App() {
           />
         </div>
       </div>
-      <CodeContext onSelectedFilesChange={setSelectedFilesContent} />
+      <CodeContext onSelectedFilesChange={handleSelectedFilesChange} />
       <RawPrompt value={rawPrompt} onChange={setRawPrompt} />
       <FinalPrompt value={finalPrompt} />
       <ActionButtons 

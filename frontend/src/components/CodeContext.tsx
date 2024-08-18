@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { SelectFile, SelectDirectory, ProcessFolder, ReadFileContent } from '../../wailsjs/go/main/App';
 import { EventsOn, EventsOff } from '../../wailsjs/runtime/runtime';
@@ -22,6 +22,18 @@ interface CodeContextProps {
 export default function CodeContext({ onSelectedFilesChange }: CodeContextProps) {
   const [files, setFiles] = useState<FileItem[]>([]);
 
+  const updateSelectedFiles = useCallback(() => {
+    const selectedContent = files
+      .filter(file => file.isSelected && !file.isDirectory)
+      .map(file => `File: ${file.path}\n${file.content || ''}`)
+      .join('\n\n');
+    onSelectedFilesChange(selectedContent);
+  }, [files, onSelectedFilesChange]);
+
+  useEffect(() => {
+    updateSelectedFiles();
+  }, [files, updateSelectedFiles]);
+
   useEffect(() => {
     const handleFilesDropped = async (droppedFiles: string[]) => {
       for (const file of droppedFiles) {
@@ -40,50 +52,35 @@ export default function CodeContext({ onSelectedFilesChange }: CodeContextProps)
     };
   }, []);
 
-  useEffect(() => {
-    const selectedContent = files
-      .filter(file => file.isSelected)
-      .map(file => `File: ${file.path}\n${file.content || ''}`)
-      .join('\n\n');
-    onSelectedFilesChange(selectedContent);
-  }, [files, onSelectedFilesChange]);
-
   const addFileToStructure = (filePath: string, content: string) => {
     setFiles(prevFiles => {
       const newFiles = [...prevFiles];
-      const parts = filePath.split('/');
+      const parts = filePath.split('/').filter(part => part !== '');
       let currentLevel = newFiles;
 
       for (let i = 0; i < parts.length; i++) {
         const part = parts[i];
         const isLast = i === parts.length - 1;
-        let existingItem = currentLevel.find(item => item.path.endsWith(part));
+        const currentPath = '/' + parts.slice(0, i + 1).join('/');
+        let existingItem = currentLevel.find(item => item.path === currentPath);
 
-        if (existingItem && existingItem.isDirectory && !isLast) {
-          currentLevel = existingItem.children!;
-        } else if (isLast) {
-          if (!existingItem) {
-            existingItem = { 
-              path: filePath, 
-              isDirectory: false, 
-              content: content,
-              isSelected: false
-            };
-            currentLevel.push(existingItem);
-          } else {
-            existingItem.content = content;
-          }
-        } else {
-          if (!existingItem) {
-            existingItem = { 
-              path: parts.slice(0, i + 1).join('/'),
-              isDirectory: true,
-              children: [],
-              isOpen: true,
-              isSelected: false
-            };
-            currentLevel.push(existingItem);
-          }
+        if (!existingItem) {
+          const newItem: FileItem = {
+            path: currentPath,
+            isDirectory: !isLast,
+            children: isLast ? undefined : [],
+            isOpen: true,
+            isSelected: false,
+            content: isLast ? content : undefined
+          };
+          currentLevel.push(newItem);
+          existingItem = newItem;
+        } else if (isLast && !existingItem.isDirectory) {
+          // Update existing file
+          existingItem.content = content;
+        }
+
+        if (!isLast) {
           currentLevel = existingItem.children!;
         }
       }
@@ -146,7 +143,7 @@ export default function CodeContext({ onSelectedFilesChange }: CodeContextProps)
   const toggleSelect = (path: string) => {
     setFiles(prevFiles => {
       const newFiles = [...prevFiles];
-      const toggleItem = (items: FileItem[]) => {
+      const toggleItem = (items: FileItem[]): boolean => {
         for (let item of items) {
           if (item.path === path) {
             item.isSelected = !item.isSelected;
@@ -186,23 +183,27 @@ export default function CodeContext({ onSelectedFilesChange }: CodeContextProps)
   };
 
   const handleFileDrop = (entry: any) => {
-    if (entry.isFile) {
-      entry.file((file: File) => {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const content = e.target?.result as string;
-          addFileToStructure(entry.fullPath, content);
-        };
-        reader.readAsText(file);
-      });
-    } else if (entry.isDirectory) {
-      const dirReader = entry.createReader();
-      dirReader.readEntries((entries: any[]) => {
-        for (let i = 0; i < entries.length; i++) {
-          handleFileDrop(entries[i]);
-        }
-      });
-    }
+    const traverseFileSystemEntry = (fsEntry: any, path = '') => {
+      if (fsEntry.isFile) {
+        fsEntry.file((file: File) => {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const content = e.target?.result as string;
+            addFileToStructure(path + file.name, content);
+          };
+          reader.readAsText(file);
+        });
+      } else if (fsEntry.isDirectory) {
+        const dirReader = fsEntry.createReader();
+        dirReader.readEntries((entries: any[]) => {
+          for (let i = 0; i < entries.length; i++) {
+            traverseFileSystemEntry(entries[i], path + fsEntry.name + '/');
+          }
+        });
+      }
+    };
+
+    traverseFileSystemEntry(entry);
   };
 
   return (
