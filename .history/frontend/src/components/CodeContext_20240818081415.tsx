@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { SelectFile, SelectDirectory, ProcessFolder, ReadFileContent, HandleFileDrop } from '../../wailsjs/go/main/App';
+import { SelectFile, SelectDirectory, HandleFileDrop } from '../../wailsjs/go/main/App';
 import { Folder, File, ChevronRight, ChevronDown, X, Plus, Trash } from "lucide-react";
 import { EventsOn, EventsOff } from '../../wailsjs/runtime/runtime';
 

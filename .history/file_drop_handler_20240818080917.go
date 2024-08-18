@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -57,55 +56,6 @@ func (a *App) processDroppedFiles(files []string) ([]string, error) {
 		}
 	}
 	return processedFiles, nil
-}
-
-func (a *App) ProcessFolder(folderPath string, config map[string]interface{}) ([]string, error) {
-	var files []string
-	var err error
-
-	recursive, _ := config["recursive"].(bool)
-	ignoreSuffixes, _ := config["ignoreSuffixes"].(string)
-	ignoreFolders, _ := config["ignoreFolders"].(string)
-
-	ignoreSuffixList := strings.Split(ignoreSuffixes, ",")
-	ignoreFolderList := strings.Split(ignoreFolders, ",")
-
-	err = filepath.Walk(folderPath, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		if info.IsDir() {
-			if !recursive && path != folderPath {
-				return filepath.SkipDir
-			}
-			for _, ignoreFolder := range ignoreFolderList {
-				if strings.HasSuffix(path, ignoreFolder) {
-					return filepath.SkipDir
-				}
-			}
-			return nil
-		}
-
-		for _, ignoreSuffix := range ignoreSuffixList {
-			if strings.HasSuffix(path, ignoreSuffix) {
-				return nil
-			}
-		}
-
-		if info.Size() > 500*1024 {
-			return nil
-		}
-
-		files = append(files, path)
-		return nil
-	})
-
-	if err != nil {
-		return nil, fmt.Errorf("error processing folder: %v", err)
-	}
-
-	return files, nil
 }
 
 func (a *App) findFile(fileName string) (string, error) {
