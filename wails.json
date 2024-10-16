@@ -9,5 +9,8 @@
   "author": {
     "name": "danielsobrado",
     "email": "daniel@danielsobrado.com"
+  },
+  "devtools": {
+    "enabled": true
   }
 }

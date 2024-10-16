@@ -12,3 +12,9 @@ node_modules
 frontend\package.json.md5
 frontend\package-lock.json
 frontend/package.json.md5
+
+.history
+debug.log
+repopack-output.txt
+frontend/package.json.md5
+repopack-output.txt

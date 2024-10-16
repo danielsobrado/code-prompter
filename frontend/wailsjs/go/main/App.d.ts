@@ -3,14 +3,24 @@
 
 export function HandleFileDrop(arg1:Array<string>):Promise<void>;
 
+export function LogInfo(arg1:string):Promise<void>;
+
 export function ProcessFolder(arg1:string,arg2:{[key: string]: any}):Promise<Array<string>>;
+
+export function ReadCustomInstructionsFile():Promise<string>;
 
 export function ReadFileContent(arg1:string):Promise<string>;
 
 export function ReadSettingsFile():Promise<string>;
 
+export function ReadTaskTypesFile():Promise<string>;
+
 export function SelectDirectory():Promise<string>;
 
 export function SelectFile():Promise<string>;
 
+export function WriteCustomInstructionsFile(arg1:string):Promise<void>;
+
 export function WriteSettingsFile(arg1:string):Promise<void>;
+
+export function WriteTaskTypesFile(arg1:string):Promise<void>;

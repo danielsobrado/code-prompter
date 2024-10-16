@@ -12,6 +12,16 @@ import (
 func (a *App) HandleFileDrop(files []string) error {
 	runtime.LogDebug(a.ctx, fmt.Sprintf("Handling file drop for files: %v", files))
 
+	// Convert dropped file paths to absolute paths
+	for i, file := range files {
+		absolutePath, err := filepath.Abs(file)
+		if err != nil {
+			runtime.LogError(a.ctx, fmt.Sprintf("Error getting absolute path: %v", err))
+			return err
+		}
+		files[i] = absolutePath
+	}
+
 	processedFiles, err := a.processDroppedFiles(files)
 	if err != nil {
 		runtime.LogError(a.ctx, fmt.Sprintf("Error handling file drop: %v", err))
@@ -68,7 +78,13 @@ func (a *App) ProcessFolder(folderPath string, config map[string]interface{}) ([
 	ignoreSuffixList := strings.Split(ignoreSuffixes, ",")
 	ignoreFolderList := strings.Split(ignoreFolders, ",")
 
-	err := filepath.Walk(folderPath, func(path string, info os.FileInfo, err error) error {
+	// Get the absolute path of the folder
+	absoluteFolderPath, err := filepath.Abs(folderPath)
+	if err != nil {
+		return nil, fmt.Errorf("error getting absolute path of folder: %v", err)
+	}
+
+	err = filepath.Walk(absoluteFolderPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}

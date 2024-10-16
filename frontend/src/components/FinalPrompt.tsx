@@ -4,15 +4,18 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface FinalPromptProps {
   value: string;
+  tokenCount: number;
 }
 
-export default function FinalPrompt({ value }: FinalPromptProps) {
+export default function FinalPrompt({ value, tokenCount }: FinalPromptProps) {
   return (
     <div className="mt-4 flex">
-      <div className="w-1/4 pr-4">
+      {/* ... existing code */}
+      <div className="w-3/4">
         <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Sections</CardTitle>
+          <CardHeader className="flex justify-between items-center">
+            <CardTitle className="text-lg">Final Prompt</CardTitle>
+            <span className="text-sm text-gray-500">Tokens: {tokenCount}</span>
           </CardHeader>
           <CardContent>
             <ul className="space-y-2">
@@ -36,7 +39,7 @@ export default function FinalPrompt({ value }: FinalPromptProps) {
               ) : (
                 <p className="text-gray-500 italic">The final prompt will appear here.</p>
               )}
-            </ScrollArea>
+            </ScrollArea>       
           </CardContent>
         </Card>
       </div>

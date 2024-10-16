@@ -5,6 +5,7 @@ import { File, Folder, ChevronDown, ChevronRight, X } from "lucide-react";
 
 interface FileItem {
   path: string;
+  name: string;
   isDirectory: boolean;
   children?: FileItem[];
   isOpen?: boolean;
@@ -40,7 +41,7 @@ export const FileTreeComponent: React.FC<FileTreeComponentProps> = ({
           ) : (
             <File className="mr-2" size={16} />
           )}
-          <span>{item.path.split('/').pop()}</span>
+          <span>{item.name}</span>
           <Button variant="ghost" size="sm" onClick={() => onRemoveFile(item.path)}>
             <X size={16} />
           </Button>

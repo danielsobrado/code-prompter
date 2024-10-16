@@ -44,3 +44,53 @@ func (a *App) getAppDataDir() string {
 	}
 	return filepath.Join(homeDir, ".code-prompter")
 }
+
+func (a *App) ReadTaskTypesFile() (string, error) {
+	taskTypesPath := filepath.Join(a.getAppDataDir(), "task_types.json")
+	content, err := os.ReadFile(taskTypesPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return "[]", nil
+		}
+		return "", fmt.Errorf("error reading task types file: %v", err)
+	}
+	return string(content), nil
+}
+
+func (a *App) WriteTaskTypesFile(content string) error {
+	taskTypesPath := filepath.Join(a.getAppDataDir(), "task_types.json")
+	err := os.MkdirAll(filepath.Dir(taskTypesPath), 0755)
+	if err != nil {
+		return fmt.Errorf("error creating task types directory: %v", err)
+	}
+	err = os.WriteFile(taskTypesPath, []byte(content), 0644)
+	if err != nil {
+		return fmt.Errorf("error writing task types file: %v", err)
+	}
+	return nil
+}
+
+func (a *App) ReadCustomInstructionsFile() (string, error) {
+    customInstructionsPath := filepath.Join(a.getAppDataDir(), "custom_instructions.json")
+    content, err := os.ReadFile(customInstructionsPath)
+    if err != nil {
+        if os.IsNotExist(err) {
+            return "[]", nil
+        }
+        return "", fmt.Errorf("error reading custom instructions file: %v", err)
+    }
+    return string(content), nil
+}
+
+func (a *App) WriteCustomInstructionsFile(content string) error {
+	customInstructionsPath := filepath.Join(a.getAppDataDir(), "custom_instructions.json")
+    err := os.MkdirAll(filepath.Dir(customInstructionsPath), 0755)
+    if err != nil {
+        return fmt.Errorf("error creating custom instructions directory: %v", err)
+    }
+    err = os.WriteFile(customInstructionsPath, []byte(content), 0644)
+    if err != nil {
+        return fmt.Errorf("error writing custom instructions file: %v", err)
+    }
+    return nil
+}

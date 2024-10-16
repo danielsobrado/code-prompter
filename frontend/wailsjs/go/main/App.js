@@ -6,8 +6,16 @@ export function HandleFileDrop(arg1) {
   return window['go']['main']['App']['HandleFileDrop'](arg1);
 }
 
+export function LogInfo(arg1) {
+  return window['go']['main']['App']['LogInfo'](arg1);
+}
+
 export function ProcessFolder(arg1, arg2) {
   return window['go']['main']['App']['ProcessFolder'](arg1, arg2);
+}
+
+export function ReadCustomInstructionsFile() {
+  return window['go']['main']['App']['ReadCustomInstructionsFile']();
 }
 
 export function ReadFileContent(arg1) {
@@ -18,6 +26,10 @@ export function ReadSettingsFile() {
   return window['go']['main']['App']['ReadSettingsFile']();
 }
 
+export function ReadTaskTypesFile() {
+  return window['go']['main']['App']['ReadTaskTypesFile']();
+}
+
 export function SelectDirectory() {
   return window['go']['main']['App']['SelectDirectory']();
 }
@@ -26,6 +38,14 @@ export function SelectFile() {
   return window['go']['main']['App']['SelectFile']();
 }
 
+export function WriteCustomInstructionsFile(arg1) {
+  return window['go']['main']['App']['WriteCustomInstructionsFile'](arg1);
+}
+
 export function WriteSettingsFile(arg1) {
   return window['go']['main']['App']['WriteSettingsFile'](arg1);
+}
+
+export function WriteTaskTypesFile(arg1) {
+  return window['go']['main']['App']['WriteTaskTypesFile'](arg1);
 }
