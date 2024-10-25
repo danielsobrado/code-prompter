@@ -88,10 +88,20 @@ export default function CodeContext({ onSelectedFilesChange }: CodeContextProps)
   };
 
   useEffect(() => {
-    const selectedContent = files
-      .filter(file => file.isSelected && !file.isDirectory)
-      .map(file => `File: ${file.path}\n${file.content || ''}`)
-      .join('\n\n');
+    const collectSelectedFilesContent = (items: FileItem[]): string => {
+      let content = '';
+      for (const item of items) {
+        if (item.isSelected && !item.isDirectory) {
+          content += `File: ${item.path}\n${item.content || ''}\n\n`;
+        }
+        if (item.children) {
+          content += collectSelectedFilesContent(item.children);
+        }
+      }
+      return content;
+    };
+
+    const selectedContent = collectSelectedFilesContent(files);
     onSelectedFilesChange(selectedContent);
   }, [files, onSelectedFilesChange]);
 
@@ -115,7 +125,7 @@ export default function CodeContext({ onSelectedFilesChange }: CodeContextProps)
             isDirectory: !isLast,
             children: isLast ? undefined : [],
             isOpen: true,
-            isSelected: false,
+            isSelected: false, // Do not select files by default
             content: isLast ? content : undefined
           };
           currentLevel.push(newItem);

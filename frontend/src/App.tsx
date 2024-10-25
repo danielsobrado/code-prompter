@@ -18,19 +18,21 @@ import { TaskTypeEditModal } from './components/TaskTypeEditModal';
 import { CustomInstructionsEditModal } from './components/CustomInstructionsEditModal';
 
 interface TaskTypeOption {
+  id: number;
   label: string;
   description: string;
 }
 
 interface CustomInstructionOption {
+  id: number;
   label: string;
   description: string;
 }
 
 function App() {
-  const [taskType, setTaskType] = useState('Feature');
+  const [taskType, setTaskType] = useState<number | null>(null);
   const [taskTypeChecked, setTaskTypeChecked] = useState(true);
-  const [customInstructions, setCustomInstructions] = useState('Default');
+  const [customInstruction, setCustomInstruction] = useState<number | null>(null);
   const [customInstructionsChecked, setCustomInstructionsChecked] = useState(true);
   const [rawPrompt, setRawPrompt] = useState('');
   const [finalPrompt, setFinalPrompt] = useState('');
@@ -47,27 +49,29 @@ function App() {
       try {
         const taskTypesContent = await ReadTaskTypesFile();
         const taskTypes: TaskTypeOption[] = JSON.parse(taskTypesContent);
-        setTaskTypeOptions(
-          taskTypes.length
-            ? taskTypes
-            : [
-                { label: 'Feature', description: 'Implement a new feature.' },
-                { label: 'Bug', description: 'Fix a bug or issue.' },
-                { label: 'Refactor', description: 'Refactor existing code.' },
-              ]
-        );
+        const defaultTaskTypes = taskTypes.length
+          ? taskTypes
+          : [
+              { id: 1, label: 'Feature', description: 'Implement a new feature.' },
+              { id: 2, label: 'Bug', description: 'Fix a bug or issue.' },
+              { id: 3, label: 'Refactor', description: 'Refactor existing code.' },
+            ];
+        setTaskTypeOptions(defaultTaskTypes);
+        setTaskType(defaultTaskTypes[0].id);
 
         const customInstructionsContent = await ReadCustomInstructionsFile();
-        const customInstructions: CustomInstructionOption[] = JSON.parse(customInstructionsContent);
-        setCustomInstructionsOptions(
-          customInstructions.length
-            ? customInstructions
-            : [
-                { label: 'Default', description: 'Use default instructions.' },
-                { label: 'Detailed', description: 'Provide detailed explanations.' },
-                { label: 'Minimal', description: 'Keep explanations brief.' },
-              ]
+        const customInstructions: CustomInstructionOption[] = JSON.parse(
+          customInstructionsContent
         );
+        const defaultCustomInstructions = customInstructions.length
+          ? customInstructions
+          : [
+              { id: 1, label: 'Default', description: 'Use default instructions.' },
+              { id: 2, label: 'Detailed', description: 'Provide detailed explanations.' },
+              { id: 3, label: 'Minimal', description: 'Keep explanations brief.' },
+            ];
+        setCustomInstructionsOptions(defaultCustomInstructions);
+        setCustomInstruction(defaultCustomInstructions[0].id);
       } catch (error) {
         console.error('Error loading options:', error);
       }
@@ -79,6 +83,9 @@ function App() {
     try {
       await WriteTaskTypesFile(JSON.stringify(options, null, 2));
       setTaskTypeOptions(options);
+      if (options.length > 0 && !options.find((opt) => opt.id === taskType)) {
+        setTaskType(options[0].id);
+      }
     } catch (error) {
       console.error('Error saving task types:', error);
     }
@@ -90,11 +97,13 @@ function App() {
     try {
       await WriteCustomInstructionsFile(JSON.stringify(options, null, 2));
       setCustomInstructionsOptions(options);
+      if (options.length > 0 && !options.find((opt) => opt.id === customInstruction)) {
+        setCustomInstruction(options[0].id);
+      }
     } catch (error) {
       console.error('Error saving custom instructions:', error);
     }
   };
- 
 
   const handleSettingsClick = () => {
     setIsSettingsOpen(true);
@@ -105,29 +114,25 @@ function App() {
     return text.trim().split(/\s+/).length;
   };
 
-  const getTaskTypeDescription = (label: string): string => {
-    const option = taskTypeOptions.find((opt) => opt.label === label);
-    return option ? option.description : '';
-  };
-
-  const getCustomInstructionDescription = (label: string): string => {
-    const option = customInstructionsOptions.find((opt) => opt.label === label);
-    return option ? option.description : '';
-  };
-
   const generatePrompt = useCallback(() => {
     let prompt = '';
 
-    if (taskTypeChecked && taskType) {
-      const taskTypeDescription = getTaskTypeDescription(taskType);
-      prompt += `Task Type: ${taskType}\n`;
-      prompt += `${taskTypeDescription}\n\n`;
+    if (taskTypeChecked && taskType !== null) {
+      const taskTypeOption = taskTypeOptions.find((opt) => opt.id === taskType);
+      if (taskTypeOption) {
+        prompt += `Task Type: ${taskTypeOption.label}\n`;
+        prompt += `${taskTypeOption.description}\n\n`;
+      }
     }
 
-    if (customInstructionsChecked && customInstructions) {
-      const customInstructionDescription = getCustomInstructionDescription(customInstructions);
-      prompt += `Custom Instructions: ${customInstructions}\n`;
-      prompt += `${customInstructionDescription}\n\n`;
+    if (customInstructionsChecked && customInstruction !== null) {
+      const customInstructionOption = customInstructionsOptions.find(
+        (opt) => opt.id === customInstruction
+      );
+      if (customInstructionOption) {
+        prompt += `Custom Instructions: ${customInstructionOption.label}\n`;
+        prompt += `${customInstructionOption.description}\n\n`;
+      }
     }
 
     if (rawPrompt) {
@@ -143,7 +148,7 @@ function App() {
   }, [
     taskType,
     taskTypeChecked,
-    customInstructions,
+    customInstruction,
     customInstructionsChecked,
     rawPrompt,
     selectedFilesContent,
@@ -187,8 +192,8 @@ function App() {
         </div>
         <div className="col-span-1">
           <CustomInstructionsSelector
-            value={customInstructions}
-            onChange={setCustomInstructions}
+            value={customInstruction}
+            onChange={setCustomInstruction}
             checked={customInstructionsChecked}
             onCheckedChange={setCustomInstructionsChecked}
             onEditClick={() => setIsCustomInstructionsEditOpen(true)}

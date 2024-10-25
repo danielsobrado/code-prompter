@@ -12,13 +12,14 @@ import { Button } from '@/components/ui/button';
 import { Edit } from 'lucide-react';
 
 interface CustomInstructionOption {
+  id: number;
   label: string;
   description: string;
 }
 
 interface CustomInstructionsSelectorProps {
-  value: string;
-  onChange: (value: string) => void;
+  value: number | null;
+  onChange: (value: number) => void;
   checked: boolean;
   onCheckedChange: (checked: boolean) => void;
   onEditClick: () => void;
@@ -43,13 +44,16 @@ export default function CustomInstructionsSelector({
       <Label htmlFor="custom-instructions" className="whitespace-nowrap">
         Custom Instructions
       </Label>
-      <Select value={value} onValueChange={onChange}>
+      <Select
+        value={value !== null ? value.toString() : ''}
+        onValueChange={(val) => onChange(parseInt(val))}
+      >
         <SelectTrigger id="custom-instructions" className="w-full">
-          <SelectValue placeholder="Select custom instructions" />
+          <SelectValue placeholder="Select Custom Instruction" />
         </SelectTrigger>
         <SelectContent>
           {options.map((option) => (
-            <SelectItem key={option.label} value={option.label}>
+            <SelectItem key={option.id} value={option.id.toString()}>
               {option.label}
             </SelectItem>
           ))}

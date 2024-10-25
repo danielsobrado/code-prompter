@@ -1,4 +1,4 @@
-// TaskTypesSelector.tsx
+// TaskTypeSelector.tsx
 import {
   Select,
   SelectContent,
@@ -12,13 +12,14 @@ import { Button } from '@/components/ui/button';
 import { Edit } from 'lucide-react';
 
 interface TaskTypeOption {
+  id: number;
   label: string;
   description: string;
 }
 
 interface TaskTypesSelectorProps {
-  value: string;
-  onChange: (value: string) => void;
+  value: number | null;
+  onChange: (value: number) => void;
   checked: boolean;
   onCheckedChange: (checked: boolean) => void;
   onEditClick: () => void;
@@ -43,13 +44,16 @@ export default function TaskTypesSelector({
       <Label htmlFor="task-type" className="whitespace-nowrap">
         Task Types
       </Label>
-      <Select value={value} onValueChange={onChange}>
+      <Select
+        value={value !== null ? value.toString() : ''}
+        onValueChange={(val) => onChange(parseInt(val))}
+      >
         <SelectTrigger id="task-type" className="w-full">
-          <SelectValue placeholder="Select Task Types" />
+          <SelectValue placeholder="Select Task Type" />
         </SelectTrigger>
         <SelectContent>
           {options.map((option) => (
-            <SelectItem key={option.label} value={option.label}>
+            <SelectItem key={option.id} value={option.id.toString()}>
               {option.label}
             </SelectItem>
           ))}
