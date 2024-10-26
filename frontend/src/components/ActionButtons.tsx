@@ -1,27 +1,30 @@
-import { Button } from "@/components/ui/button"
-import { Edit, Copy, Wand2 } from "lucide-react"
+// ActionButtons.tsx
+import React from 'react';
+import { Button } from '@/components/ui/button';
+import { Copy, RefreshCw } from 'lucide-react';
 
 interface ActionButtonsProps {
-  onEdit?: () => void;
-  onCopy?: () => void;
-  onGenerate?: () => void;
+  onCopy: () => void;
+  onGenerateChatGPT: () => void;
+  onGenerateClaude: () => void;
 }
 
-export default function ActionButtons({ onEdit, onCopy, onGenerate }: ActionButtonsProps) {
+export default function ActionButtons({
+  onCopy,
+  onGenerateChatGPT,
+  onGenerateClaude,
+}: ActionButtonsProps) {
   return (
-    <div className="flex justify-end space-x-2 mt-4">
-      <Button variant="outline" size="sm" onClick={onEdit}>
-        <Edit className="w-4 h-4 mr-2" />
-        Edit
+    <div className="flex space-x-2 mt-4">
+      <Button onClick={onCopy} variant="default">
+        <Copy className="mr-2 h-4 w-4" /> Copy
       </Button>
-      <Button variant="outline" size="sm" onClick={onCopy}>
-        <Copy className="w-4 h-4 mr-2" />
-        Copy
+      <Button onClick={onGenerateChatGPT} variant="default">
+        <RefreshCw className="mr-2 h-4 w-4" /> Generate ChatGPT
       </Button>
-      <Button variant="default" size="sm" onClick={onGenerate}>
-        <Wand2 className="w-4 h-4 mr-2" />
-        Generate Prompt
+      <Button onClick={onGenerateClaude} variant="default">
+        <RefreshCw className="mr-2 h-4 w-4" /> Generate Claude
       </Button>
     </div>
-  )
+  );
 }

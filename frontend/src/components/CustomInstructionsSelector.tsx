@@ -1,4 +1,6 @@
 // CustomInstructionsSelector.tsx
+
+import React from 'react';
 import {
   Select,
   SelectContent,
@@ -10,18 +12,14 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Edit } from 'lucide-react';
-
-interface CustomInstructionOption {
-  id: number;
-  label: string;
-  description: string;
-}
+import { CustomInstructionOption } from '../types';
+import { CheckedState } from '@radix-ui/react-checkbox';
 
 interface CustomInstructionsSelectorProps {
-  value: number | null;
-  onChange: (value: number) => void;
+  value: string;
+  onChange: (value: string) => void;
   checked: boolean;
-  onCheckedChange: (checked: boolean) => void;
+  onCheckedChange: (checked: CheckedState) => void;
   onEditClick: () => void;
   options: CustomInstructionOption[];
 }
@@ -44,16 +42,13 @@ export default function CustomInstructionsSelector({
       <Label htmlFor="custom-instructions" className="whitespace-nowrap">
         Custom Instructions
       </Label>
-      <Select
-        value={value !== null ? value.toString() : ''}
-        onValueChange={(val) => onChange(parseInt(val))}
-      >
+      <Select value={value} onValueChange={onChange}>
         <SelectTrigger id="custom-instructions" className="w-full">
-          <SelectValue placeholder="Select Custom Instruction" />
+          <SelectValue placeholder="Select custom instructions" />
         </SelectTrigger>
         <SelectContent>
           {options.map((option) => (
-            <SelectItem key={option.id} value={option.id.toString()}>
+            <SelectItem key={option.id} value={option.label}>
               {option.label}
             </SelectItem>
           ))}
