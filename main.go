@@ -24,8 +24,8 @@ func main() {
 	// Create application with options
 	err := wails.Run(&options.App{
 		Title:             "Code Prompter",
-		Width:             1024,
-		Height:            768,
+		Width:             1200,
+		Height:            1280,
 		MinWidth:          1024,
 		MinHeight:         768,
 		MaxWidth:          1280,
