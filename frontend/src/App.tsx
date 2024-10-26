@@ -15,8 +15,8 @@ import {
   ReadCustomInstructionsFile,
   WriteCustomInstructionsFile,
 } from '../wailsjs/go/main/App';
-import { TaskTypeEditModal } from './components/TaskTypeEditModal';
-import { CustomInstructionsEditModal } from './components/CustomInstructionsEditModal';
+import TaskTypeEditModal from './components/TaskTypeEditModal';
+import CustomInstructionsEditModal from './components/CustomInstructionsEditModal';
 import { TaskTypeOption, CustomInstructionOption } from './types';
 import { v4 as uuidv4 } from 'uuid';
 import { CheckedState } from '@radix-ui/react-checkbox';
