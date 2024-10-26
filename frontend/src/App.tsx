@@ -1,10 +1,10 @@
 // App.tsx
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Header from './components/Header';
 import TaskTypeSelector from './components/TaskTypeSelector';
 import CustomInstructionsSelector from './components/CustomInstructionsSelector';
-import CodeContext from './components/CodeContext';
+import CodeContext, { SelectedFile } from './components/CodeContext';
 import RawPrompt from './components/RawPrompt';
 import FinalPrompt from './components/FinalPrompt';
 import ActionButtons from './components/ActionButtons';
@@ -22,19 +22,32 @@ import { v4 as uuidv4 } from 'uuid';
 import { CheckedState } from '@radix-ui/react-checkbox';
 
 function App() {
-  const [taskType, setTaskType] = useState<string>('Feature');
+  const [taskType, setTaskType] = useState<string>('');
   const [taskTypeChecked, setTaskTypeChecked] = useState<boolean>(true);
-  const [customInstructions, setCustomInstructions] = useState<string>('Default');
+  const [customInstructions, setCustomInstructions] = useState<string>('');
   const [customInstructionsChecked, setCustomInstructionsChecked] = useState<boolean>(true);
   const [rawPrompt, setRawPrompt] = useState<string>('');
   const [finalPrompt, setFinalPrompt] = useState<string>('');
-  const [selectedFilesContent, setSelectedFilesContent] = useState<string>('');
+  const [selectedFilesArray, setSelectedFilesArray] = useState<SelectedFile[]>([]);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   const [isTaskTypeEditOpen, setIsTaskTypeEditOpen] = useState<boolean>(false);
   const [isCustomInstructionsEditOpen, setIsCustomInstructionsEditOpen] = useState<boolean>(false);
   const [taskTypeOptions, setTaskTypeOptions] = useState<TaskTypeOption[]>([]);
   const [customInstructionsOptions, setCustomInstructionsOptions] = useState<CustomInstructionOption[]>([]);
   const [tokenCount, setTokenCount] = useState<number>(0);
+
+  // State to track the current prompt type ('ChatGPT' or 'Claude')
+  const [currentPromptType, setCurrentPromptType] = useState<'ChatGPT' | 'Claude'>('ChatGPT');
+
+  // Ref to track the previous prompt type
+  const prevPromptType = useRef<'ChatGPT' | 'Claude'>('ChatGPT');
+
+  // Default task instructions
+  const DEFAULT_CHATGPT_INSTRUCTION =
+    'You are an expert coder tasked with the above task and need to strictly follow the instructions. Use the files provided as existing reference and code base.';
+
+  const DEFAULT_CLAUDE_INSTRUCTION =
+    'You are an expert coder tasked with the above <TASK> and need to strictly follow the <INSTRUCTIONS>. Use the files in <FILES> as existing reference and code base.';
 
   useEffect(() => {
     const loadOptions = async () => {
@@ -51,13 +64,14 @@ function App() {
 
         if (taskTypes.length === 0) {
           taskTypes = [
-            { id: uuidv4(), label: 'Feature', description: 'Implement a new feature.' },
-            { id: uuidv4(), label: 'Bug', description: 'Fix a bug or issue.' },
-            { id: uuidv4(), label: 'Refactor', description: 'Refactor existing code.' },
+            { id: uuidv4(), label: 'Implement Feature', description: 'Implement a new feature.' },
+            { id: uuidv4(), label: 'Fix Bug', description: 'Fix a bug or issue.' },
+            { id: uuidv4(), label: 'Refactor Code', description: 'Refactor existing code.' },
           ];
         }
 
         setTaskTypeOptions(taskTypes);
+        setTaskType(taskTypes[0].label); // Set default value
 
         const customInstructionsContent = await ReadCustomInstructionsFile();
         let customInstructions: CustomInstructionOption[] = JSON.parse(customInstructionsContent);
@@ -78,6 +92,7 @@ function App() {
         }
 
         setCustomInstructionsOptions(customInstructions);
+        setCustomInstructions(customInstructions[0].label); // Set default value
       } catch (error) {
         console.error('Error loading options:', error);
       }
@@ -89,6 +104,10 @@ function App() {
     try {
       await WriteTaskTypesFile(JSON.stringify(options, null, 2));
       setTaskTypeOptions(options);
+      // Update selected task type if it was deleted
+      if (!options.some((opt) => opt.label === taskType)) {
+        setTaskType(options.length > 0 ? options[0].label : '');
+      }
     } catch (error) {
       console.error('Error saving task types:', error);
     }
@@ -98,6 +117,10 @@ function App() {
     try {
       await WriteCustomInstructionsFile(JSON.stringify(options, null, 2));
       setCustomInstructionsOptions(options);
+      // Update selected custom instruction if it was deleted
+      if (!options.some((opt) => opt.label === customInstructions)) {
+        setCustomInstructions(options.length > 0 ? options[0].label : '');
+      }
     } catch (error) {
       console.error('Error saving custom instructions:', error);
     }
@@ -126,25 +149,28 @@ function App() {
   const generateChatGPTPrompt = useCallback(() => {
     let prompt = '';
 
+    // Add Task Description
     if (taskTypeChecked && taskType) {
       const taskTypeDescription = getTaskTypeDescription(taskType);
-      prompt += `Task Type: ${taskType}\n`;
-      prompt += `${taskTypeDescription}\n\n`;
+      prompt += `Task:\n${taskTypeDescription}\n\n`;
     }
 
+    // Add Instructions
     if (customInstructionsChecked && customInstructions) {
       const customInstructionDescription = getCustomInstructionDescription(customInstructions);
-      prompt += `Custom Instructions: ${customInstructions}\n`;
-      prompt += `${customInstructionDescription}\n\n`;
+      prompt += `Instructions:\n${customInstructionDescription}\n\n`;
     }
 
-    if (rawPrompt) {
-      prompt += `Raw Prompt: ${rawPrompt}\n\n`;
+    // Add Selected Files
+    if (selectedFilesArray.length > 0) {
+      const filesText = selectedFilesArray
+        .map((file) => `File: ${file.path}\n${file.content}`)
+        .join('\n\n');
+      prompt += `Files:\n${filesText}\n\n`;
     }
 
-    if (selectedFilesContent) {
-      prompt += `Selected Files:\n${selectedFilesContent}\n\n`;
-    }
+    // Append Raw Prompt (Task Instruction)
+    prompt += rawPrompt;
 
     setFinalPrompt(prompt);
     setTokenCount(calculateTokenCount(prompt));
@@ -154,7 +180,7 @@ function App() {
     customInstructions,
     customInstructionsChecked,
     rawPrompt,
-    selectedFilesContent,
+    selectedFilesArray,
     taskTypeOptions,
     customInstructionsOptions,
   ]);
@@ -163,42 +189,30 @@ function App() {
   const generateClaudePrompt = useCallback(() => {
     let prompt = '';
 
-    prompt += `<Task>\n`;
-
-    if (taskTypeChecked && taskType) {
-      const taskTypeDescription = getTaskTypeDescription(taskType);
-      prompt += `  <Type>\n    <Label>${taskType}</Label>\n    <Description>${taskTypeDescription}</Description>\n  </Type>\n`;
-    }
-
-    if (customInstructionsChecked && customInstructions) {
-      const customInstructionDescription = getCustomInstructionDescription(customInstructions);
-      prompt += `  <CustomInstructions>\n    <Label>${customInstructions}</Label>\n    <Description>${customInstructionDescription}</Description>\n  </CustomInstructions>\n`;
-    }
-
-    if (rawPrompt) {
-      prompt += `  <RawPrompt>${rawPrompt}</RawPrompt>\n`;
-    }
-
-    if (selectedFilesContent) {
-      // Convert selectedFilesContent to XML format
-      const filesXml = selectedFilesContent
-        .split('\n\n')
-        .map((fileBlock) => {
-          const [fileLine, ...contentLines] = fileBlock.split('\n');
-          const pathMatch = fileLine.match(/^File: (.+)$/);
-          if (pathMatch) {
-            const filePath = pathMatch[1];
-            const content = contentLines.join('\n');
-            return `    <File>\n      <Path>${filePath}</Path>\n      <Content><![CDATA[${content}]]></Content>\n    </File>`;
-          }
-          return '';
+    // Start with FILES section
+    if (selectedFilesArray.length > 0) {
+      const filesXml = selectedFilesArray
+        .map((file) => {
+          return `  <FILE>\n    <FILEPATH>${file.path}</FILEPATH>\n    <FILECONTENT><![CDATA[${file.content}]]></FILECONTENT>\n  </FILE>`;
         })
         .join('\n');
-
-      prompt += `  <SelectedFiles>\n${filesXml}\n  </SelectedFiles>\n`;
+      prompt += `<FILES>\n${filesXml}\n</FILES>\n\n`;
     }
 
-    prompt += `</Task>`;
+    // Add TASK section
+    if (taskTypeChecked && taskType) {
+      const taskTypeDescription = getTaskTypeDescription(taskType);
+      prompt += `<TASK>\n${taskTypeDescription}\n</TASK>\n\n`;
+    }
+
+    // Add INSTRUCTIONS section
+    if (customInstructionsChecked && customInstructions) {
+      const customInstructionDescription = getCustomInstructionDescription(customInstructions);
+      prompt += `<INSTRUCTIONS>\n${customInstructionDescription}\n</INSTRUCTIONS>\n\n`;
+    }
+
+    // Append Raw Prompt (Task Instruction)
+    prompt += rawPrompt;
 
     setFinalPrompt(prompt);
     setTokenCount(calculateTokenCount(prompt));
@@ -208,15 +222,50 @@ function App() {
     customInstructions,
     customInstructionsChecked,
     rawPrompt,
-    selectedFilesContent,
+    selectedFilesArray,
     taskTypeOptions,
     customInstructionsOptions,
   ]);
 
-  // Generate ChatGPT prompt by default on state changes
+  // useEffect to handle prompt generation and default task instruction
   useEffect(() => {
-    generateChatGPTPrompt();
-  }, [generateChatGPTPrompt]);
+    // Update task instruction if it matches the default of the previous prompt type
+    const prevDefaultInstruction =
+      prevPromptType.current === 'ChatGPT'
+        ? DEFAULT_CHATGPT_INSTRUCTION
+        : DEFAULT_CLAUDE_INSTRUCTION;
+
+    const currentDefaultInstruction =
+      currentPromptType === 'ChatGPT'
+        ? DEFAULT_CHATGPT_INSTRUCTION
+        : DEFAULT_CLAUDE_INSTRUCTION;
+
+    if (rawPrompt.trim() === '' || rawPrompt === prevDefaultInstruction) {
+      setRawPrompt(currentDefaultInstruction);
+    }
+
+    // Generate the prompt based on the current prompt type
+    if (currentPromptType === 'ChatGPT') {
+      generateChatGPTPrompt();
+    } else if (currentPromptType === 'Claude') {
+      generateClaudePrompt();
+    }
+
+    // Update the previous prompt type
+    prevPromptType.current = currentPromptType;
+  }, [
+    currentPromptType,
+    taskType,
+    taskTypeChecked,
+    customInstructions,
+    customInstructionsChecked,
+    rawPrompt,
+    selectedFilesArray,
+    taskTypeOptions,
+    customInstructionsOptions,
+    generateChatGPTPrompt,
+    generateClaudePrompt,
+  ]);
 
   const handleCopy = () => {
     navigator.clipboard
@@ -225,9 +274,19 @@ function App() {
       .catch((err) => console.error('Failed to copy prompt: ', err));
   };
 
-  const handleSelectedFilesChange = useCallback((content: string) => {
-    setSelectedFilesContent(content);
+  const handleSelectedFilesChange = useCallback((files: SelectedFile[]) => {
+    setSelectedFilesArray(files);
   }, []);
+
+  // Handle Generate ChatGPT button click
+  const handleGenerateChatGPT = () => {
+    setCurrentPromptType('ChatGPT');
+  };
+
+  // Handle Generate Claude button click
+  const handleGenerateClaude = () => {
+    setCurrentPromptType('Claude');
+  };
 
   return (
     <div className="container mx-auto p-4 space-y-4">
@@ -266,8 +325,8 @@ function App() {
       />
       <ActionButtons
         onCopy={handleCopy}
-        onGenerateChatGPT={generateChatGPTPrompt}
-        onGenerateClaude={generateClaudePrompt}
+        onGenerateChatGPT={handleGenerateChatGPT}
+        onGenerateClaude={handleGenerateClaude}
       />
       <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
 
