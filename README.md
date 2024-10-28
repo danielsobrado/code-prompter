@@ -37,6 +37,14 @@ browser and connect to your application.
 
 ![Code Prompter](https://github.com/danielsobrado/code-prompter/blob/main/images/image.png)
 
+The Executable is on build/bin [Executable](https://github.com/danielsobrado/code-prompter/tree/main/build/bin/CodePrompter.exe)
+
+Or generate it with:
+
+```console
+wails build -nsis
+```
+
 ## Building
 
 To build a redistributable, production mode package, use `wails build`.
