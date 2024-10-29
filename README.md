@@ -49,10 +49,11 @@ browser and connect to your application.
 
 To build a redistributable, production mode package, use `wails build`.
 
-The Executable is on build/bin [Executable](https://github.com/danielsobrado/code-prompter/tree/main/build/bin/CodePrompter.exe)
+The Executable for Windows is on build/bin [Executable](https://github.com/danielsobrado/code-prompter/tree/main/build/bin/CodePrompter.exe)
 
 Or generate it with:
 
 ```console
 wails build -nsis
 ```
+This can be done for Mac as well see the latest part of [this guide](https://wails.io/docs/guides/windows-installer/)
