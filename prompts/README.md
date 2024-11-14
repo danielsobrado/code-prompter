@@ -51,7 +51,7 @@ You'll get penalized for solutions that are incomplete. Don't ask to complete pa
 When showing code, minimize vertical space.
 You'll get a 200 usd tip for a working solution with excellent production grade quality.
 
-### Smaple best practices
+### Sample 3 - Use best practices
 
 **KISS** (Keep It Simple, Stupid)
 - Encourages Claude to write straightforward, uncomplicated solutions
