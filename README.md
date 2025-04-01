@@ -8,6 +8,8 @@ The Task Instruction and Final Prompt sections allow users to add detailed requi
 
 Users can generate prompts using ChatGPT or Claude (XML style).
 
+Check the [sample prompts](https://github.com/danielsobrado/code-prompter/blob/main/prompts/README.md)
+
 ## About
 
 This template comes with Vite, React, TypeScript, TailwindCSS and shadcn/ui.

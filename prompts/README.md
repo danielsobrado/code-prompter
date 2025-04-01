@@ -50,3 +50,22 @@ Don't be verbose in your answers.
 You'll get penalized for solutions that are incomplete. Don't ask to complete parts of the code, do as much as possible.
 When showing code, minimize vertical space.
 You'll get a 200 usd tip for a working solution with excellent production grade quality.
+
+### Sample 3 - Use best practices
+
+**KISS** (Keep It Simple, Stupid)
+- Encourages Claude to write straightforward, uncomplicated solutions
+- Avoids over-engineering and unnecessary complexity
+- Results in more readable and maintainable code
+
+**YAGNI** (You Aren't Gonna Need It)
+- Prevents Claude from adding speculative features
+- Focuses on implementing only what's currently needed
+- Reduces code bloat and maintenance overhead
+
+**SOLID** Principles
+- Single Responsibility Principle
+- Open-Closed Principle
+- Liskov Substitution Principle
+- Interface Segregation Principle
+- Dependency Inversion Principle
