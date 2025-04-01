@@ -16,6 +16,28 @@ This template comes with Vite, React, TypeScript, TailwindCSS and shadcn/ui.
 
 Built with `Wails v2.5.1` and [shadcn's CLI](https://ui.shadcn.com/docs/cli)
 
+## Version History
+
+### v0.0.2
+- **Extension Filtering System**: New dropdown menu to filter files by extension, making it easier to manage large sets of files
+  - Dynamically shows all detected extensions with file counts
+  - Support for both inclusion and exclusion filtering
+  - Visual indicators showing active filters
+  - Quick filter toggle directly from the main interface
+- **.gitignore Integration**: Automatically respect .gitignore rules when importing files
+  - Detects and parses .gitignore files during folder import
+  - Filters out ignored directories and files based on standard gitignore patterns
+  - Toggle control to enable/disable gitignore filtering
+  - Visual indicator when .gitignore patterns are detected and applied
+
+![Code Prompter v 0.0.2](https://github.com/danielsobrado/code-prompter/blob/main/images/CodePrompter2.jpg)
+
+### v0.0.1
+- Initial release
+- Task Type and Custom Instructions selection
+- Drag-and-drop file selection
+- ChatGPT and Claude prompt generation
+
 ### Using the Template
 ```console
 wails init -n project-name -t https://github.com/Mahcks/wails-vite-react-tailwind-shadcnui-ts
@@ -59,3 +81,5 @@ Or generate it with:
 wails build -nsis
 ```
 This can be done for Mac as well see the latest part of [this guide](https://wails.io/docs/guides/windows-installer/)
+
+
