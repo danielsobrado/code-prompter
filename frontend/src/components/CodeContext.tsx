@@ -1,12 +1,14 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { FilePlus, FolderPlus, Trash2 } from 'lucide-react';
+import { FilePlus, FolderPlus, Trash2, GitBranch } from 'lucide-react';
 import ExtensionFilter from './ExtensionFilter';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 import path from 'path-browserify';
 
 // Extend HTMLInputElement to include directory selection attributes
 declare module 'react' {
-  interface InputHTMLAttributes<T> extends HTMLAttributes<T> {
+  interface InputHTMLAttributes<T> extends React.HTMLAttributes<T> {
     webkitdirectory?: string;
     directory?: string;
   }
@@ -37,6 +39,9 @@ export default function CodeContext({ onSelectedFilesChange }: CodeContextProps)
   const [extensions, setExtensions] = useState<{ [key: string]: number }>({});
   const [includedExtensions, setIncludedExtensions] = useState<string[]>([]);
   const [excludedExtensions, setExcludedExtensions] = useState<string[]>([]);
+  const [respectGitignore, setRespectGitignore] = useState<boolean>(true);
+  const [gitignorePatterns, setGitignorePatterns] = useState<string[]>([]);
+  const [gitignoreFound, setGitignoreFound] = useState<boolean>(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
@@ -59,24 +64,6 @@ export default function CodeContext({ onSelectedFilesChange }: CodeContextProps)
     });
     
     return extCount;
-  };
-
-  // Function to add files
-  const handleAddFiles = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const fileList = event.target.files;
-    if (fileList) {
-      const fileArray = Array.from(fileList);
-      readFiles(fileArray);
-    }
-  };
-
-  // Function to add folders
-  const handleAddFolders = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const fileList = event.target.files;
-    if (fileList) {
-      const fileArray = Array.from(fileList);
-      readFiles(fileArray);
-    }
   };
 
   // Function to read files
@@ -113,12 +100,99 @@ export default function CodeContext({ onSelectedFilesChange }: CodeContextProps)
     });
   };
 
+  // Function to add files
+  const handleAddFiles = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const fileList = event.target.files;
+    if (fileList) {
+      const fileArray = Array.from(fileList);
+      readFiles(fileArray);
+    }
+  };
+
+  // Parse .gitignore content to extract patterns
+  const parseGitignore = (content: string): string[] => {
+    return content
+      .split('\n')
+      .map(line => line.trim())
+      .filter(line => 
+        line && !line.startsWith('#') && !line.startsWith('!')
+      );
+  };
+
+  // Function to add folders
+  const handleAddFolders = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const fileList = event.target.files;
+    if (fileList) {
+      const fileArray = Array.from(fileList);
+      
+      // Check if there's a .gitignore file in the folder
+      const gitignoreFile = fileArray.find(file => 
+        file.name === '.gitignore' || file.webkitRelativePath?.endsWith('/.gitignore')
+      );
+      
+      if (gitignoreFile && respectGitignore) {
+        // Read the .gitignore file to extract patterns
+        const reader = new FileReader();
+        reader.onload = () => {
+          const content = reader.result as string;
+          const patterns = parseGitignore(content);
+          setGitignorePatterns(patterns);
+          setGitignoreFound(true);
+          
+          // Filter files based on gitignore patterns if respectGitignore is enabled
+          const filteredFileArray = respectGitignore 
+            ? filterFilesByGitignore(fileArray, patterns) 
+            : fileArray;
+          
+          readFiles(filteredFileArray);
+        };
+        reader.readAsText(gitignoreFile);
+      } else {
+        readFiles(fileArray);
+      }
+    }
+  };
+  
+  // Filter files based on gitignore patterns
+  const filterFilesByGitignore = (files: File[], patterns: string[]): File[] => {
+    return files.filter(file => {
+      const relativePath = file.webkitRelativePath || file.name;
+      
+      // Check if file path matches any gitignore pattern
+      return !patterns.some(pattern => {
+        // Handle simple directory patterns (node_modules/, build/, etc.)
+        if (pattern.endsWith('/')) {
+          const dirName = pattern.slice(0, -1);
+          return relativePath.includes(`/${dirName}/`) || 
+                 relativePath.startsWith(`${dirName}/`) || 
+                 relativePath === dirName;
+        }
+        
+        // Handle wildcard patterns (*.log, etc.)
+        if (pattern.includes('*')) {
+          const regexPattern = pattern
+            .replace(/\./g, '\\.')
+            .replace(/\*/g, '.*');
+          const regex = new RegExp(`^${regexPattern}$`);
+          return regex.test(path.basename(relativePath));
+        }
+        
+        // Handle specific file or directory names
+        return relativePath === pattern || 
+               relativePath.includes(`/${pattern}`) || 
+               path.basename(relativePath) === pattern;
+      });
+    });
+  };
+
   // Function to clear all files
   const handleClearAll = () => {
     setFiles([]);
     setExtensions({});
     setIncludedExtensions([]);
     setExcludedExtensions([]);
+    setGitignoreFound(false);
+    setGitignorePatterns([]);
   };
 
   // Function to toggle file selection
@@ -130,11 +204,167 @@ export default function CodeContext({ onSelectedFilesChange }: CodeContextProps)
     );
   };
 
+  // Utility to read file content from a FileSystemFileEntry
+  const readFileContent = (fileEntry: FileSystemFileEntry): Promise<string> => {
+    return new Promise((resolve) => {
+      fileEntry.file((file) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          resolve(reader.result as string);
+        };
+        reader.onerror = () => resolve('');
+        reader.readAsText(file);
+      });
+    });
+  };
+
   // Handle filter changes
   const handleFilterChange = useCallback((included: string[], excluded: string[]) => {
     setIncludedExtensions(included);
     setExcludedExtensions(excluded);
   }, []);
+
+  const readEntry = (entry: FileSystemEntry, gitignorePatterns: string[] = []): Promise<FileItem[]> => {
+    return new Promise((resolve) => {
+      // Check if entry should be ignored based on gitignore patterns
+      const shouldIgnore = (entryPath: string): boolean => {
+        if (gitignorePatterns.length === 0) return false;
+        
+        return gitignorePatterns.some(pattern => {
+          // Handle simple directory patterns (node_modules/, build/, etc.)
+          if (pattern.endsWith('/')) {
+            const dirName = pattern.slice(0, -1);
+            return entryPath.includes(`/${dirName}/`) || 
+                   entryPath.startsWith(`${dirName}/`) || 
+                   entryPath === dirName;
+          }
+          
+          // Handle wildcard patterns (*.log, etc.)
+          if (pattern.includes('*')) {
+            const regexPattern = pattern
+              .replace(/\./g, '\\.')
+              .replace(/\*/g, '.*');
+            const regex = new RegExp(`^${regexPattern}$`);
+            return regex.test(path.basename(entryPath));
+          }
+          
+          // Handle specific file or directory names
+          return entryPath === pattern || 
+                 entryPath.includes(`/${pattern}`) || 
+                 path.basename(entryPath) === pattern;
+        });
+      };
+      
+      if (entry.isFile) {
+        const fileEntry = entry as FileSystemFileEntry;
+        // Skip if file should be ignored
+        if (shouldIgnore(entry.fullPath || entry.name)) {
+          resolve([]);
+          return;
+        }
+        
+        fileEntry.file((file: File) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const content = reader.result as string;
+            const extension = getFileExtension(file.name);
+            
+            resolve([
+              {
+                path: entry.fullPath || file.name,
+                name: file.name,
+                isDirectory: false,
+                isSelected: false,
+                content,
+                extension
+              },
+            ]);
+          };
+          reader.readAsText(file);
+        });
+      } else if (entry.isDirectory) {
+        // Skip if directory should be ignored
+        if (shouldIgnore(entry.fullPath || entry.name)) {
+          resolve([]);
+          return;
+        }
+        
+        const dirEntry = entry as FileSystemDirectoryEntry;
+        const dirReader = dirEntry.createReader();
+        dirReader.readEntries((entries: FileSystemEntry[]) => {
+          const entryPromises = entries.map((e) => readEntry(e, gitignorePatterns));
+          Promise.all(entryPromises).then((results) => {
+            resolve(results.flat());
+          });
+        });
+      } else {
+        resolve([]);
+      }
+    });
+  };
+
+  // Handle file/folder drop
+  const handleDrop = (event: React.DragEvent) => {
+    event.preventDefault();
+    const items = event.dataTransfer.items;
+    const filePromises: Promise<FileItem[]>[] = [];
+
+    // Get all entries first
+    const entries: FileSystemEntry[] = [];
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i].webkitGetAsEntry();
+      if (item) {
+        entries.push(item);
+      }
+    }
+    
+    // Check for .gitignore among the dropped items
+    const processEntries = async () => {
+      // Look for .gitignore
+      let gitignoreContent = '';
+      let patterns: string[] = [];
+      
+      if (respectGitignore) {
+        for (const entry of entries) {
+          if (entry.isFile && entry.name === '.gitignore') {
+            const gitignoreText = await readFileContent(entry as FileSystemFileEntry);
+            if (gitignoreText) {
+              gitignoreContent = gitignoreText;
+              patterns = parseGitignore(gitignoreContent);
+              setGitignorePatterns(patterns);
+              setGitignoreFound(true);
+              break;
+            }
+          }
+        }
+      }
+      
+      // Process entries with gitignore filter if applicable
+      for (const entry of entries) {
+        if (respectGitignore && patterns.length > 0) {
+          // Apply gitignore filtering when reading entries
+          filePromises.push(readEntry(entry, patterns));
+        } else {
+          filePromises.push(readEntry(entry));
+        }
+      }
+      
+      Promise.all(filePromises).then((newFiles) => {
+        const flattenedFiles = newFiles.flat();
+        setFiles((prevFiles) => {
+          const updatedFiles = [...prevFiles, ...flattenedFiles];
+          setExtensions(countExtensions(updatedFiles));
+          return updatedFiles;
+        });
+      });
+    };
+    
+    processEntries();
+  };
+
+  const handleDragOver = (event: React.DragEvent) => {
+    event.preventDefault();
+  };
 
   // Apply filters
   useEffect(() => {
@@ -175,71 +405,6 @@ export default function CodeContext({ onSelectedFilesChange }: CodeContextProps)
     const selectedFilesArray = collectSelectedFilesContent(files);
     onSelectedFilesChange(selectedFilesArray);
   }, [files, onSelectedFilesChange]);
-
-  // Handle file/folder drop
-  const handleDrop = (event: React.DragEvent) => {
-    event.preventDefault();
-    const items = event.dataTransfer.items;
-    const filePromises: Promise<FileItem[]>[] = [];
-
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i].webkitGetAsEntry();
-      if (item) {
-        filePromises.push(readEntry(item));
-      }
-    }
-
-    Promise.all(filePromises).then((newFiles) => {
-      const flattenedFiles = newFiles.flat();
-      setFiles((prevFiles) => {
-        const updatedFiles = [...prevFiles, ...flattenedFiles];
-        setExtensions(countExtensions(updatedFiles));
-        return updatedFiles;
-      });
-    });
-  };
-
-  const readEntry = (entry: FileSystemEntry): Promise<FileItem[]> => {
-    return new Promise((resolve) => {
-      if (entry.isFile) {
-        const fileEntry = entry as FileSystemFileEntry;
-        fileEntry.file((file: File) => {
-          const reader = new FileReader();
-          reader.onload = () => {
-            const content = reader.result as string;
-            const extension = getFileExtension(file.name);
-            
-            resolve([
-              {
-                path: entry.fullPath || file.name,
-                name: file.name,
-                isDirectory: false,
-                isSelected: false,
-                content,
-                extension
-              },
-            ]);
-          };
-          reader.readAsText(file);
-        });
-      } else if (entry.isDirectory) {
-        const dirEntry = entry as FileSystemDirectoryEntry;
-        const dirReader = dirEntry.createReader();
-        dirReader.readEntries((entries: FileSystemEntry[]) => {
-          const entryPromises = entries.map((e) => readEntry(e));
-          Promise.all(entryPromises).then((results) => {
-            resolve(results.flat());
-          });
-        });
-      } else {
-        resolve([]);
-      }
-    });
-  };
-
-  const handleDragOver = (event: React.DragEvent) => {
-    event.preventDefault();
-  };
 
   // Function to select all files of a specific extension
   const selectAllByExtension = (extension: string) => {
@@ -325,6 +490,27 @@ export default function CodeContext({ onSelectedFilesChange }: CodeContextProps)
             onFilterChange={handleFilterChange}
           />
         )}
+        
+        {/* Gitignore Respect Checkbox */}
+        <div className="ml-auto flex items-center space-x-2">
+          <Checkbox 
+            id="respect-gitignore" 
+            checked={respectGitignore}
+            onCheckedChange={(checked) => setRespectGitignore(!!checked)}
+          />
+          <Label 
+            htmlFor="respect-gitignore" 
+            className="flex items-center cursor-pointer text-sm"
+          >
+            <GitBranch className="mr-1 h-4 w-4 text-muted-foreground" />
+            Filter using .gitignore
+            {gitignoreFound && (
+              <span className="ml-1 text-xs rounded-full bg-green-100 text-green-800 px-1.5 py-0.5">
+                Found
+              </span>
+            )}
+          </Label>
+        </div>
       </div>
       
       <div
