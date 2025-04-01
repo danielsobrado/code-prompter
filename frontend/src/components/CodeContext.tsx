@@ -1,6 +1,8 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { FilePlus, FolderPlus, Trash2 } from 'lucide-react';
+import ExtensionFilter from './ExtensionFilter';
+import path from 'path-browserify';
 
 // Extend HTMLInputElement to include directory selection attributes
 declare module 'react' {
@@ -17,6 +19,7 @@ export interface FileItem {
   isSelected: boolean;
   content?: string;
   children?: FileItem[];
+  extension?: string;
 }
 
 export interface SelectedFile {
@@ -30,8 +33,33 @@ interface CodeContextProps {
 
 export default function CodeContext({ onSelectedFilesChange }: CodeContextProps) {
   const [files, setFiles] = useState<FileItem[]>([]);
+  const [filteredFiles, setFilteredFiles] = useState<FileItem[]>([]);
+  const [extensions, setExtensions] = useState<{ [key: string]: number }>({});
+  const [includedExtensions, setIncludedExtensions] = useState<string[]>([]);
+  const [excludedExtensions, setExcludedExtensions] = useState<string[]>([]);
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
+
+  // Extract file extension
+  const getFileExtension = (filename: string): string => {
+    const ext = path.extname(filename).toLowerCase();
+    return ext ? ext : '(no extension)';
+  };
+
+  // Count extensions
+  const countExtensions = (fileList: FileItem[]): { [key: string]: number } => {
+    const extCount: { [key: string]: number } = {};
+    
+    fileList.forEach(file => {
+      if (!file.isDirectory) {
+        const ext = file.extension || getFileExtension(file.name);
+        extCount[ext] = (extCount[ext] || 0) + 1;
+      }
+    });
+    
+    return extCount;
+  };
 
   // Function to add files
   const handleAddFiles = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -60,16 +88,25 @@ export default function CodeContext({ onSelectedFilesChange }: CodeContextProps)
       const reader = new FileReader();
       reader.onload = () => {
         const content = reader.result as string;
+        const extension = getFileExtension(file.name);
+        
         newFiles.push({
           path: file.webkitRelativePath || file.name,
           name: file.name,
           isDirectory: false,
           isSelected: false,
           content,
+          extension
         });
+        
         filesProcessed++;
         if (filesProcessed === fileArray.length) {
-          setFiles((prevFiles) => [...prevFiles, ...newFiles]);
+          setFiles(prevFiles => {
+            const updatedFiles = [...prevFiles, ...newFiles];
+            // Update extensions count
+            setExtensions(countExtensions(updatedFiles));
+            return updatedFiles;
+          });
         }
       };
       reader.readAsText(file);
@@ -79,6 +116,9 @@ export default function CodeContext({ onSelectedFilesChange }: CodeContextProps)
   // Function to clear all files
   const handleClearAll = () => {
     setFiles([]);
+    setExtensions({});
+    setIncludedExtensions([]);
+    setExcludedExtensions([]);
   };
 
   // Function to toggle file selection
@@ -89,6 +129,37 @@ export default function CodeContext({ onSelectedFilesChange }: CodeContextProps)
       )
     );
   };
+
+  // Handle filter changes
+  const handleFilterChange = useCallback((included: string[], excluded: string[]) => {
+    setIncludedExtensions(included);
+    setExcludedExtensions(excluded);
+  }, []);
+
+  // Apply filters
+  useEffect(() => {
+    let result = [...files];
+    
+    // Apply inclusion filter if any
+    if (includedExtensions.length > 0) {
+      result = result.filter(file => {
+        if (file.isDirectory) return true;
+        const ext = file.extension || getFileExtension(file.name);
+        return includedExtensions.includes(ext);
+      });
+    }
+    
+    // Apply exclusion filter 
+    if (excludedExtensions.length > 0) {
+      result = result.filter(file => {
+        if (file.isDirectory) return true;
+        const ext = file.extension || getFileExtension(file.name);
+        return !excludedExtensions.includes(ext);
+      });
+    }
+    
+    setFilteredFiles(result);
+  }, [files, includedExtensions, excludedExtensions]);
 
   // Collect selected files and notify parent component
   useEffect(() => {
@@ -119,7 +190,12 @@ export default function CodeContext({ onSelectedFilesChange }: CodeContextProps)
     }
 
     Promise.all(filePromises).then((newFiles) => {
-      setFiles((prevFiles) => [...prevFiles, ...newFiles.flat()]);
+      const flattenedFiles = newFiles.flat();
+      setFiles((prevFiles) => {
+        const updatedFiles = [...prevFiles, ...flattenedFiles];
+        setExtensions(countExtensions(updatedFiles));
+        return updatedFiles;
+      });
     });
   };
 
@@ -131,6 +207,8 @@ export default function CodeContext({ onSelectedFilesChange }: CodeContextProps)
           const reader = new FileReader();
           reader.onload = () => {
             const content = reader.result as string;
+            const extension = getFileExtension(file.name);
+            
             resolve([
               {
                 path: entry.fullPath || file.name,
@@ -138,6 +216,7 @@ export default function CodeContext({ onSelectedFilesChange }: CodeContextProps)
                 isDirectory: false,
                 isSelected: false,
                 content,
+                extension
               },
             ]);
           };
@@ -162,9 +241,37 @@ export default function CodeContext({ onSelectedFilesChange }: CodeContextProps)
     event.preventDefault();
   };
 
+  // Function to select all files of a specific extension
+  const selectAllByExtension = (extension: string) => {
+    setFiles(prevFiles => 
+      prevFiles.map(file => {
+        if (!file.isDirectory && (file.extension || getFileExtension(file.name)) === extension) {
+          return { ...file, isSelected: true };
+        }
+        return file;
+      })
+    );
+  };
+
+  // Function to deselect all files of a specific extension
+  const deselectAllByExtension = (extension: string) => {
+    setFiles(prevFiles => 
+      prevFiles.map(file => {
+        if (!file.isDirectory && (file.extension || getFileExtension(file.name)) === extension) {
+          return { ...file, isSelected: false };
+        }
+        return file;
+      })
+    );
+  };
+
   // Render file list
   const renderFiles = (items: FileItem[]) => {
-    return items.map((item) => (
+    const filesToRender = includedExtensions.length > 0 || excludedExtensions.length > 0 
+      ? filteredFiles 
+      : items;
+      
+    return filesToRender.map((item) => (
       <div key={item.path} className="pl-4">
         <div className="flex items-center space-x-2">
           <input
@@ -174,6 +281,9 @@ export default function CodeContext({ onSelectedFilesChange }: CodeContextProps)
             className="rounded border-gray-300 text-primary focus:ring-primary"
           />
           <span className="text-sm">{item.path}</span>
+          {!item.isDirectory && (
+            <span className="text-xs text-gray-500">{item.extension || getFileExtension(item.name)}</span>
+          )}
         </div>
       </div>
     ));
@@ -181,7 +291,7 @@ export default function CodeContext({ onSelectedFilesChange }: CodeContextProps)
 
   return (
     <div className="mt-4">
-      <div className="flex space-x-2">
+      <div className="flex items-center space-x-2">
         <Button onClick={() => fileInputRef.current?.click()}>
           <FilePlus className="mr-2 h-4 w-4" /> Add File
         </Button>
@@ -207,7 +317,16 @@ export default function CodeContext({ onSelectedFilesChange }: CodeContextProps)
         <Button variant="destructive" onClick={handleClearAll}>
           <Trash2 className="mr-2 h-4 w-4" /> Clear All
         </Button>
+        
+        {/* Extension Filter Component */}
+        {Object.keys(extensions).length > 0 && (
+          <ExtensionFilter 
+            extensions={extensions} 
+            onFilterChange={handleFilterChange}
+          />
+        )}
       </div>
+      
       <div
         onDrop={handleDrop}
         onDragOver={handleDragOver}
@@ -221,6 +340,13 @@ export default function CodeContext({ onSelectedFilesChange }: CodeContextProps)
           </p>
         )}
       </div>
+      
+      {/* File statistics */}
+      {files.length > 0 && (
+        <div className="mt-2 text-xs text-gray-500">
+          {files.length} file(s) total • {filteredFiles.length} showing • {files.filter(f => f.isSelected).length} selected
+        </div>
+      )}
     </div>
   );
 }
