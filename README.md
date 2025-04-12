@@ -18,6 +18,11 @@ Built with `Wails v2.5.1` and [shadcn's CLI](https://ui.shadcn.com/docs/cli)
 
 ## Version History
 
+### v0.0.21
+- **Select All Visible Button**: Added a "Select All Visible" button to the Code Context section.
+  - This button allows users to quickly select all files that are currently visible in the file list, respecting any active extension filters.
+  - Improves usability when working with filtered file sets.
+
 ### v0.0.2
 - **Extension Filtering System**: New dropdown menu to filter files by extension, making it easier to manage large sets of files
   - Dynamically shows all detected extensions with file counts
