@@ -14,7 +14,7 @@ Check the [sample prompts](https://github.com/danielsobrado/code-prompter/blob/m
 
 This template comes with Vite, React, TypeScript, TailwindCSS and shadcn/ui.
 
-Built with `Wails v2.5.1` and [shadcn's CLI](https://ui.shadcn.com/docs/cli)
+Built with `Wails v2.10.1` and [shadcn's CLI](https://ui.shadcn.com/docs/cli)
 
 ## Version History
 
