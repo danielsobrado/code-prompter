@@ -16,3 +16,4 @@ debug.log
 repopack-output.txt
 frontend/package.json.md5
 build/bin/CodePrompter.exe~
+go.mod
