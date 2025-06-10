@@ -5,7 +5,7 @@ export function HandleFileDrop(arg1:Array<string>):Promise<void>;
 
 export function LogInfo(arg1:string):Promise<void>;
 
-export function ProcessFolder(arg1:string,arg2:{[key: string]: any}):Promise<Array<string>>;
+export function ProcessFolder(arg1:string,arg2:Record<string, any>):Promise<Array<string>>;
 
 export function ReadCustomInstructionsFile():Promise<string>;
 
